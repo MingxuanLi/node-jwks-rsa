@@ -23,7 +23,8 @@ class JwksClient {
       this.getSigningKey = rateLimitSigningKey(this, options);
     }
     if (this.options.cache) {
-      this.getSigningKey = cacheSigningKey(this, options);
+      this.memorizer = cacheSigningKey(this, options);
+      this.getSigningKey = this.memorizer;
     }
 
     this.getSigningKey = callbackSupport(this, options);
@@ -41,11 +42,14 @@ class JwksClient {
         fetcher: this.options.fetcher
       });
 
-      this.logger('Keys:', res.keys);  
+      this.logger('Keys:', res.keys);
       return res.keys;
     } catch (err) {
       const { errorMsg } = err;
       this.logger('Failure:', errorMsg || err);
+      if(this.memorizer) {
+        this.memorizer.reset()
+      }
       throw (errorMsg ? new JwksError(errorMsg) : err);
     }
   }

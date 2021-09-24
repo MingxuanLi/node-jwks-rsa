@@ -12,10 +12,50 @@ describe('JwksClient (cache)', () => {
   });
 
   describe('#getSigningKey', () => {
+    describe('should cache successful public key responses', () => {
+
+      afterEach(async () => {
+        // Stop the JWKS server
+        nock.cleanAll();
+      });
+
+      it('should not cache error result when get signing key given idp returns server error', async () => {
+        const client = new JwksClient({
+          cache: true,
+          jwksUri: `${jwksHost}/.well-known/jwks.json`
+        });
+
+        nock(jwksHost)
+          .get('/.well-known/jwks.json')
+          .reply(500);
+
+        nock(jwksHost)
+          .get('/.well-known/jwks.json')
+          .reply(200, x5cSingle);
+
+        try {
+          // Do not cache error
+          await client.getSigningKey('NkFCNEE1NDFDNTQ5RTQ5OTE1QzRBMjYyMzY0NEJCQTJBMjJBQkZCMA');
+          expect.fail('should have thrown error');
+        } catch (err) {
+          expect(err).not.to.be.null;
+        }
+
+        console.log('pass first test')
+
+        // Get signing key from server instead of resolving from cache
+        const key = await client.getSigningKey('NkFCNEE1NDFDNTQ5RTQ5OTE1QzRBMjYyMzY0NEJCQTJBMjJBQkZCMA');
+        expect(key.kid).to.equal('NkFCNEE1NDFDNTQ5RTQ5OTE1QzRBMjYyMzY0NEJCQTJBMjJBQkZCMA');
+
+        console.log('pass second test')
+        // expect(nock.isDone()).to.be.true()
+      });
+    });
+
     describe('should cache requests per kid', () => {
       let client;
 
-      before(async () => {
+      beforeEach(async () => {
         nock(jwksHost)
           .get('/.well-known/jwks.json')
           .reply(200, x5cSingle);
@@ -38,7 +78,7 @@ describe('JwksClient (cache)', () => {
           throw new Error('should have thrown error');
         } catch (err) {
           expect(err).not.to.be.null;
-          expect(err.code).to.equal('ENOTFOUND'); 
+          expect(err.code).to.equal('ENOTFOUND');
         }
       });
 
